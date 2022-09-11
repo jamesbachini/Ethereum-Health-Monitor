@@ -1,0 +1,24 @@
+{
+  "name": "ethereum-health-monitor",
+  "version": "1.0.0",
+  "description": "A NodeJS application to monitor Ethereum infrastructure",
+  "main": "ethmonitor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Ethereum",
+    "Infura",
+    "Metamask",
+    "Monitor",
+    "Alchemy",
+    "Etherscan"
+  ],
+  "author": "James Bachini",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.2",
+    "ethers": "^5.7.0",
+    "puppeteer": "^17.1.3"
+  }
+}
