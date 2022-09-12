@@ -1,5 +1,7 @@
 require("dotenv").config();
 const ethers = require('ethers');
+const Web3 = require('web3');
+
 const infuraProvider = new ethers.providers.InfuraProvider('homestead',process.env.INFURA_API_KEY);
 const alchemyProvider = ethers.getDefaultProvider('homestead', { alchemy: process.env.ALCHEMY_API_KEY });
 const puppeteer = require('puppeteer');
@@ -34,6 +36,8 @@ const health = {
   ethSupply: 0,
   ethStaked: 0,
   burntFees: 0,
+  rpcNodes: [],
+  minsToMerge: 0,
 };
 
 
@@ -41,7 +45,7 @@ const checkInfura = async () => {
   const ts = new Date().getTime();
   health.infuraBlockNo = await infuraProvider.getBlockNumber();
   health.infuraResponse = new Date().getTime() - ts;
-  health.lastBlock = await infuraProvider.getBlock(health.infuraBlockNo);
+  //health.lastBlock = await infuraProvider.getBlock(health.infuraBlockNo);
   health.gasPrice = await infuraProvider.getGasPrice();
   health.infuraLastSeen = new Date().getTime();
 };
@@ -50,8 +54,8 @@ const checkAlchemy = async () => {
   const ts = new Date().getTime();
   health.alchemyBlockNo = await alchemyProvider.getBlockNumber();
   health.alchemyResponse = new Date().getTime() - ts;
-  health.lastBlock = await alchemyProvider.getBlock(health.alchemyBlockNo);
-  health.gasPrice = await infuraProvider.getGasPrice();
+  //health.lastBlock = await alchemyProvider.getBlock(health.alchemyBlockNo);
+  //health.gasPrice = await alchemyProvider.getGasPrice();
   health.alchemyLastSeen = new Date().getTime();
 };
 
@@ -96,6 +100,7 @@ const checkFTX = async () => {
 
 const checkFlashbots = async () => {
   const ts = new Date().getTime();
+  // https://rpc.flashbots.net
   const response = await fetch('https://relay.flashbots.net', {
     method: 'post',
     headers: {'Content-Type': 'application/json'}
@@ -117,6 +122,35 @@ const checkStatus = () => {
   if (health.etherscanLastSeen > ts - 15000) health.etherscanStatus = 'OK';
   if (health.etherscanAPILastSeen > ts - 15000) health.etherscanAPIStatus = 'OK';
   if (health.flashbotsLastSeen > ts - 15000) health.flashbotsStatus = 'OK';
+  if (health.lastBlock) {
+    const difficulty = ethers.BigNumber.from(health.lastBlock.difficulty);
+    const totalDifficulty = ethers.BigNumber.from(health.lastBlock.totalDifficulty);
+    const ttd = ethers.BigNumber.from('58750000000000000000000');
+    const remaining = ttd.sub(totalDifficulty);
+    const blocksRemaining = remaining.div(difficulty);
+    health.minsToMerge = blocksRemaining.mul(14).div(60);
+  }
+}
+
+const checkRPCNodes = () => {
+  health.rpcNodes = [];
+  const rpcNodes = [
+    "https://rpc.ankr.com/eth",
+    "https://eth-rpc.gateway.pokt.network",
+    "https://cloudflare-eth.com"
+  ];
+  rpcNodes.forEach(async (rpcNode) => {
+    try {
+      const ts = new Date().getTime();
+      const web3 = new Web3(rpcNode);
+      const blockNo = await web3.eth.getBlockNumber();
+      const responseTime = new Date().getTime() - ts;
+      health.lastBlock = await web3.eth.getBlock(blockNo);
+      health.rpcNodes.push([rpcNode.split('https://').join(''), `${responseTime}ms`]);
+    } catch (e) {
+      console.log(`Error on RPC Node: ${rpcNode}`);
+    }
+  });
 }
 
 const monitorHealth = async (req, res) => {
@@ -127,6 +161,7 @@ const monitorHealth = async (req, res) => {
   checkEtherscan();
   checkBinance();
   checkFTX();
+  checkRPCNodes();
   await new Promise(r => setTimeout(r, 5000));
   for (let i = 0; i < 10; i++) {
     checkStatus();
@@ -176,7 +211,15 @@ console.log(`
 ░░
 ░░       TRANSACTIONS: ${health.lastBlock.transactions.length}
 ░░
-░░       DIFFICULTY: ${ethers.BigNumber.from(health.lastBlock._difficulty)}
+░░       BLOCK SIZE: ${health.lastBlock.size}
+░░
+░░       BLOCK TIME: ${new Date(health.lastBlock.timestamp * 1000)}
+░░
+░░       TTD: ${ethers.BigNumber.from(health.lastBlock.totalDifficulty)} / 58750000000000000000000
+░░
+░░       MERGE IN: ${health.minsToMerge} mins
+░░
+░░       DIFFICULTY: ${ethers.BigNumber.from(health.lastBlock.difficulty)}
 ░░
 ░░       MINER: ${health.lastBlock.miner}
 ░░
@@ -188,8 +231,9 @@ console.log(`
 ░░       FTX: ${health.ftxStatus} (${health.ftxResponse}ms)
 ░░          ETH PRICE: $${Number(health.ftxPrice).toFixed(2)}
 ░░
+░░       RPC NODES: ${health.rpcNodes.join(' ')}
+░░
+░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 `);
 };
-
-
