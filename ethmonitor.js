@@ -154,14 +154,14 @@ const checkRPCNodes = () => {
 }
 
 const monitorHealth = async (req, res) => {
-  checkInfura();
-  checkAlchemy();
-  checkFlashbots();
-  checkEtherscanAPI();
-  checkEtherscan();
-  checkBinance();
-  checkFTX();
-  checkRPCNodes();
+  try { checkInfura(); } catch(e) { console.log(e); }
+  try { checkAlchemy(); } catch(e) { console.log(e); }
+  try { checkFlashbots(); } catch(e) { console.log(e); }
+  try { checkEtherscanAPI(); } catch(e) { console.log(e); }
+  try { checkEtherscan(); } catch(e) { console.log(e); }
+  try { checkBinance(); } catch(e) { console.log(e); }
+  try { checkFTX(); } catch(e) { console.log(e); }
+  try { checkRPCNodes(); } catch(e) { console.log(e); }
   await new Promise(r => setTimeout(r, 5000));
   for (let i = 0; i < 10; i++) {
     checkStatus();
