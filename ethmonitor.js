@@ -164,9 +164,9 @@ const monitorHealth = async (req, res) => {
   try { checkRPCNodes(); } catch(e) { console.log(e); }
   await new Promise(r => setTimeout(r, 5000));
   for (let i = 0; i < 10; i++) {
-    checkStatus();
+    try { checkStatus(); } catch(e) { console.log(e); }
     console.clear();
-    print();
+    try { print(); } catch(e) { console.log(e); }
     await new Promise(r => setTimeout(r, 1000));
   }
   monitorHealth();
